@@ -44,7 +44,7 @@ export function Register({ onNavigate }) {
       return;
     }
     if (!captchaToken) {
-      setError("Please complete CAPTCHA human verification.");
+      setError("Human verification challenge required: Please complete the security puzzle below.");
       return;
     }
 
@@ -413,7 +413,11 @@ export function Register({ onNavigate }) {
                 </div>
 
                 {/* CAPTCHA challenge */}
-                <CaptchaWidget onVerify={(token) => setCaptchaToken(token)} verified={!!captchaToken} />
+                <CaptchaWidget
+                  onVerify={(token) => { setCaptchaToken(token); setError(""); }}
+                  verified={!!captchaToken}
+                  error={!!error && !captchaToken}
+                />
 
                 <button
                   type="submit"

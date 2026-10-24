@@ -21,7 +21,7 @@ export function Login({ onNavigate }) {
       return;
     }
     if (!captchaToken) {
-      setError("Please complete the security verification challenge.");
+      setError("Human verification challenge required: Please complete the security puzzle below.");
       return;
     }
 
@@ -277,7 +277,11 @@ export function Login({ onNavigate }) {
 
             {/* Turnstile / reCAPTCHA widget */}
             <div>
-              <CaptchaWidget onVerify={(token) => setCaptchaToken(token)} verified={!!captchaToken} />
+              <CaptchaWidget
+                onVerify={(token) => { setCaptchaToken(token); setError(""); }}
+                verified={!!captchaToken}
+                error={!!error && !captchaToken}
+              />
             </div>
 
             <button
