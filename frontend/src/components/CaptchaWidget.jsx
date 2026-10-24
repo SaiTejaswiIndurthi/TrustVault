@@ -5,6 +5,10 @@ export function CaptchaWidget({ onVerify, verified = false }) {
   const [loading, setLoading] = useState(false);
   const [isChecked, setIsChecked] = useState(verified);
 
+  React.useEffect(() => {
+    setIsChecked(verified);
+  }, [verified]);
+
   const handleTrigger = () => {
     if (isChecked || loading) return;
     setLoading(true);

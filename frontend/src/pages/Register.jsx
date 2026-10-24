@@ -26,7 +26,7 @@ export function Register({ onNavigate }) {
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState("VIEWER");
   const [tenantName, setTenantName] = useState("CyberCorp Defense & Financial");
-  const [captchaToken, setCaptchaToken] = useState("TRUSTVAULT_DEV_CAPTCHA_PASSED");
+  const [captchaToken, setCaptchaToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successData, setSuccessData] = useState(null);
