@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ShieldCheck, RefreshCw, CheckCircle2, AlertCircle, AlertTriangle, X, Shield, Lock } from "lucide-react";
 
 export function CaptchaWidget({ onVerify, verified = false, error = false }) {
-  const [isChecked, setIsChecked] = useState(verified);
+  const [internalChecked, setInternalChecked] = useState(verified);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [captchaCode, setCaptchaCode] = useState("");
   const [userInput, setUserInput] = useState("");
@@ -12,73 +12,69 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
   const [isShaking, setIsShaking] = useState(false);
   const canvasRef = useRef(null);
 
-  useEffect(() => {
-    setIsChecked(verified);
-  }, [verified]);
+  // Consider verified if either prop or internal state says verified
+  const isChecked = verified || internalChecked;
 
-  // Generate a random 5-character alphanumeric CAPTCHA
+  // Generate a clean, high-readability 4-character code (avoiding confusing characters)
   const generateCaptcha = () => {
-    const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // exclude 0, O, 1, I
+    const chars = "346789ABCDEFHKMNPRTWXY"; // Clean, high-legibility characters
     let code = "";
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     setCaptchaCode(code);
     setUserInput("");
+    setErrorMessage("");
   };
 
-  // Draw the distorted CAPTCHA on canvas
+  // Render the verification badge onto the canvas
   useEffect(() => {
     if (!isModalOpen || !canvasRef.current || !captchaCode) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Background gradient
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, "#F8FAFC");
-    gradient.addColorStop(1, "#E2E8F0");
-    ctx.fillStyle = gradient;
+    // Clear and draw background
+    ctx.fillStyle = "#F1F5F9";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Background noise dots
-    for (let i = 0; i < 70; i++) {
-      ctx.fillStyle = `rgba(${Math.floor(Math.random() * 150)}, ${Math.floor(Math.random() * 150)}, ${Math.floor(Math.random() * 200)}, 0.45)`;
+    // Subtle background grid
+    ctx.strokeStyle = "#E2E8F0";
+    ctx.lineWidth = 1;
+    for (let x = 10; x < canvas.width; x += 15) {
       ctx.beginPath();
-      ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random() * 2.2, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
     }
-
-    // Interference bezier lines
-    for (let i = 0; i < 6; i++) {
-      ctx.strokeStyle = `rgba(99, 91, 219, ${0.25 + Math.random() * 0.35})`;
-      ctx.lineWidth = 1 + Math.random() * 1.5;
+    for (let y = 10; y < canvas.height; y += 15) {
       ctx.beginPath();
-      ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
-      ctx.bezierCurveTo(
-        Math.random() * canvas.width, Math.random() * canvas.height,
-        Math.random() * canvas.width, Math.random() * canvas.height,
-        Math.random() * canvas.width, Math.random() * canvas.height
-      );
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
       ctx.stroke();
     }
 
-    // Draw characters with random rotation and font
-    const colors = ["#151B3D", "#635BDB", "#0F766E", "#1E293B", "#4338CA"];
+    // Subtle security line
+    ctx.strokeStyle = "rgba(99, 91, 219, 0.35)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(10, 25);
+    ctx.bezierCurveTo(70, 5, 130, 45, 190, 25);
+    ctx.stroke();
+
+    // Draw characters clearly with high contrast
+    const colors = ["#151B3D", "#635BDB", "#0F766E", "#312E81"];
     for (let i = 0; i < captchaCode.length; i++) {
       const char = captchaCode[i];
       ctx.save();
-      const x = 24 + i * 32;
-      const y = 34 + Math.random() * 5;
-      const angle = (Math.random() - 0.5) * 0.45;
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-      ctx.font = `bold ${24 + Math.floor(Math.random() * 5)}px 'Courier New', monospace`;
+      const x = 30 + i * 40;
+      const y = 35;
+      ctx.font = "bold 28px 'JetBrains Mono', 'Courier New', monospace";
       ctx.fillStyle = colors[i % colors.length];
-      ctx.shadowColor = "rgba(0, 0, 0, 0.15)";
+      ctx.shadowColor = "rgba(0, 0, 0, 0.12)";
       ctx.shadowOffsetX = 1;
       ctx.shadowOffsetY = 1;
-      ctx.fillText(char, 0, 0);
+      ctx.fillText(char, x, y);
       ctx.restore();
     }
   }, [isModalOpen, captchaCode]);
@@ -92,35 +88,37 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
 
   const handleVerifySubmit = (e) => {
     e.preventDefault();
-    if (!userInput.trim()) {
-      setErrorMessage("Please enter the 5 characters displayed in the image.");
+    const cleanInput = userInput.trim().toUpperCase();
+    if (!cleanInput) {
+      setErrorMessage("Please enter the 4 characters shown in the box.");
       triggerShake();
       return;
     }
 
     setSubmitting(true);
-    setTimeout(() => {
-      if (userInput.trim().toUpperCase() === captchaCode) {
-        setIsChecked(true);
-        setIsModalOpen(false);
-        setSubmitting(false);
-        setErrorMessage("");
-        setFailedAttempts(0);
+    // Instant verification on match
+    if (cleanInput === captchaCode.trim().toUpperCase()) {
+      setInternalChecked(true);
+      setIsModalOpen(false);
+      setSubmitting(false);
+      setErrorMessage("");
+      setFailedAttempts(0);
+      if (onVerify) {
         onVerify("TRUSTVAULT_DEV_CAPTCHA_PASSED");
-      } else {
-        const newAttempts = failedAttempts + 1;
-        setFailedAttempts(newAttempts);
-        setErrorMessage(`Verification Failed: Code "${userInput.trim().toUpperCase()}" does not match. New challenge generated.`);
-        setSubmitting(false);
-        triggerShake();
-        generateCaptcha();
       }
-    }, 350);
+    } else {
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      setErrorMessage(`Code does not match. Try this new code:`);
+      setSubmitting(false);
+      triggerShake();
+      generateCaptcha();
+    }
   };
 
   const triggerShake = () => {
     setIsShaking(true);
-    setTimeout(() => setIsShaking(false), 500);
+    setTimeout(() => setIsShaking(false), 400);
   };
 
   const hasError = !isChecked && (error || failedAttempts > 0);
@@ -131,13 +129,13 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
       <div
         style={{
           border: isChecked
-            ? "1px solid #BBF7D0"
+            ? "1px solid #10B981"
             : hasError
             ? "1px solid #EF4444"
             : "1px solid var(--border-color)",
           borderRadius: "var(--radius-md)",
           padding: "12px 16px",
-          backgroundColor: isChecked ? "#F0FDF4" : hasError ? "#FEF2F2" : "#FFFFFF",
+          backgroundColor: isChecked ? "#ECFDF5" : hasError ? "#FEF2F2" : "#FFFFFF",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -156,11 +154,11 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
               height: "28px",
               borderRadius: "6px",
               border: isChecked
-                ? "2px solid var(--trust-teal)"
+                ? "2px solid #10B981"
                 : hasError
                 ? "2px solid #EF4444"
-                : "2px solid #CBD5E1",
-              backgroundColor: isChecked ? "var(--trust-teal-light)" : "#FFFFFF",
+                : "2px solid #94A3B8",
+              backgroundColor: isChecked ? "#D1FAE5" : "#FFFFFF",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -169,15 +167,15 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
               transition: "all 0.2s",
             }}
           >
-            {isChecked && <CheckCircle2 size={18} style={{ color: "var(--trust-teal)" }} />}
+            {isChecked && <CheckCircle2 size={20} style={{ color: "#059669" }} />}
             {!isChecked && hasError && <AlertTriangle size={15} style={{ color: "#EF4444" }} />}
           </button>
           <div>
             <div
               style={{
                 fontSize: "14px",
-                fontWeight: "600",
-                color: isChecked ? "#166534" : hasError ? "#991B1B" : "var(--text-main)",
+                fontWeight: "700",
+                color: isChecked ? "#065F46" : hasError ? "#991B1B" : "var(--text-main)",
               }}
             >
               {isChecked
@@ -187,8 +185,8 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
                 : "Click to complete security verification"}
             </div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
-              <span style={{ color: hasError ? "#DC2626" : "var(--electric-indigo)", fontWeight: "600" }}>
-                {hasError ? "Verification pending" : "TrustVault Shield"}
+              <span style={{ color: hasError ? "#DC2626" : isChecked ? "#059669" : "var(--electric-indigo)", fontWeight: "600" }}>
+                {isChecked ? "Verified" : hasError ? "Action required" : "TrustVault Shield"}
               </span>
               <span>&bull; Anti-bot challenge verification</span>
             </div>
@@ -196,11 +194,11 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px", color: hasError ? "#DC2626" : "var(--electric-indigo)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", color: isChecked ? "#059669" : hasError ? "#DC2626" : "var(--electric-indigo)" }}>
             <ShieldCheck size={18} />
             <span style={{ fontSize: "11px", fontWeight: "700" }}>CAPTCHA</span>
           </div>
-          <span style={{ fontSize: "9px", color: "#94A3B8" }}>Protected</span>
+          <span style={{ fontSize: "9px", color: "#94A3B8" }}>{isChecked ? "Passed" : "Protected"}</span>
         </div>
       </div>
 
@@ -220,7 +218,7 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
           <AlertCircle size={14} style={{ flexShrink: 0 }} />
           <span>
             {failedAttempts > 0
-              ? `Verification failed (${failedAttempts} attempt${failedAttempts > 1 ? "s" : ""}). Click the shield above to retry.`
+              ? `Verification not completed (${failedAttempts} failed attempt${failedAttempts > 1 ? "s" : ""}). Click above to solve.`
               : "Please click the security box above and solve the puzzle to proceed."}
           </span>
         </div>
@@ -251,7 +249,7 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
               padding: "24px",
               boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
               position: "relative",
-              transform: isShaking ? "translateX(-6px)" : "none",
+              transform: isShaking ? "translateX(-8px)" : "none",
               transition: "transform 0.1s ease-in-out",
             }}
           >
@@ -279,10 +277,10 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
             </div>
 
             <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px" }}>
-              Enter the 5 characters displayed in the security challenge below:
+              Enter the 4 characters shown in the security box below:
             </p>
 
-            {/* Distorted Canvas Image Display */}
+            {/* Clear, High-Legibility Canvas Box */}
             <div
               style={{
                 position: "relative",
@@ -290,7 +288,7 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
                 alignItems: "center",
                 justifyContent: "center",
                 marginBottom: "16px",
-                border: "1px solid #CBD5E1",
+                border: "2px solid #CBD5E1",
                 borderRadius: "var(--radius-md)",
                 overflow: "hidden",
                 backgroundColor: "#F8FAFC",
@@ -346,16 +344,16 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
               <input
                 type="text"
                 autoFocus
-                maxLength={5}
-                placeholder="Enter 5 characters"
+                maxLength={4}
+                placeholder="Enter 4 characters"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value.toUpperCase())}
                 className="input-control"
                 style={{
                   textAlign: "center",
-                  fontSize: "18px",
-                  letterSpacing: "4px",
-                  fontWeight: "700",
+                  fontSize: "20px",
+                  letterSpacing: "6px",
+                  fontWeight: "800",
                   fontFamily: "var(--font-mono)",
                   borderColor: errorMessage ? "#EF4444" : undefined,
                 }}
