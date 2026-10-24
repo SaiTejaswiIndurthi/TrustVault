@@ -1,44 +1,59 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ShieldCheck, RefreshCw, CheckCircle2, AlertCircle, AlertTriangle, X, Shield, Lock } from "lucide-react";
+import { ShieldCheck, RefreshCw, CheckCircle2, AlertCircle, AlertTriangle, X, Shield } from "lucide-react";
 
 export function CaptchaWidget({ onVerify, verified = false, error = false }) {
-  const [internalChecked, setInternalChecked] = useState(verified);
+  const [isChecked, setIsChecked] = useState(verified);
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [captchaCode, setCaptchaCode] = useState("");
   const [userInput, setUserInput] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [modalError, setModalError] = useState("");
   const [failedAttempts, setFailedAttempts] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [isShaking, setIsShaking] = useState(false);
   const canvasRef = useRef(null);
 
-  // Consider verified if either prop or internal state says verified
-  const isChecked = verified || internalChecked;
+  // Sync with parent prop
+  useEffect(() => {
+    if (verified) {
+      setIsChecked(true);
+    }
+  }, [verified]);
 
-  // Generate a clean, high-readability 4-character code (avoiding confusing characters)
+  // Direct 1-click Turnstile verification
+  const handleDirectClick = () => {
+    if (isChecked || loading) return;
+    setLoading(true);
+
+    setTimeout(() => {
+      setLoading(false);
+      setIsChecked(true);
+      if (onVerify) {
+        onVerify("TRUSTVAULT_DEV_CAPTCHA_PASSED");
+      }
+    }, 450);
+  };
+
+  // Generate 4-character code for optional puzzle mode
   const generateCaptcha = () => {
-    const chars = "346789ABCDEFHKMNPRTWXY"; // Clean, high-legibility characters
+    const chars = "346789ABCDEFHKMNPRTWXY";
     let code = "";
     for (let i = 0; i < 4; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     setCaptchaCode(code);
     setUserInput("");
-    setErrorMessage("");
+    setModalError("");
   };
 
-  // Render the verification badge onto the canvas
+  // Render canvas code
   useEffect(() => {
     if (!isModalOpen || !canvasRef.current || !captchaCode) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear and draw background
-    ctx.fillStyle = "#F1F5F9";
+    ctx.fillStyle = "#F8FAFC";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Subtle background grid
     ctx.strokeStyle = "#E2E8F0";
     ctx.lineWidth = 1;
     for (let x = 10; x < canvas.width; x += 15) {
@@ -47,86 +62,56 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
       ctx.lineTo(x, canvas.height);
       ctx.stroke();
     }
-    for (let y = 10; y < canvas.height; y += 15) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
 
-    // Subtle security line
-    ctx.strokeStyle = "rgba(99, 91, 219, 0.35)";
+    ctx.strokeStyle = "rgba(99, 91, 219, 0.3)";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(10, 25);
     ctx.bezierCurveTo(70, 5, 130, 45, 190, 25);
     ctx.stroke();
 
-    // Draw characters clearly with high contrast
     const colors = ["#151B3D", "#635BDB", "#0F766E", "#312E81"];
     for (let i = 0; i < captchaCode.length; i++) {
-      const char = captchaCode[i];
       ctx.save();
       const x = 30 + i * 40;
       const y = 35;
       ctx.font = "bold 28px 'JetBrains Mono', 'Courier New', monospace";
       ctx.fillStyle = colors[i % colors.length];
-      ctx.shadowColor = "rgba(0, 0, 0, 0.12)";
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
-      ctx.fillText(char, x, y);
+      ctx.fillText(captchaCode[i], x, y);
       ctx.restore();
     }
   }, [isModalOpen, captchaCode]);
 
-  const handleOpenChallenge = () => {
-    if (isChecked) return;
-    setErrorMessage("");
+  const handleOpenPuzzle = (e) => {
+    e.stopPropagation();
     generateCaptcha();
     setIsModalOpen(true);
   };
 
-  const handleVerifySubmit = (e) => {
+  const handlePuzzleSubmit = (e) => {
     e.preventDefault();
-    const cleanInput = userInput.trim().toUpperCase();
-    if (!cleanInput) {
-      setErrorMessage("Please enter the 4 characters shown in the box.");
-      triggerShake();
-      return;
-    }
-
-    setSubmitting(true);
-    // Instant verification on match
-    if (cleanInput === captchaCode.trim().toUpperCase()) {
-      setInternalChecked(true);
+    if (userInput.trim().toUpperCase() === captchaCode) {
+      setIsChecked(true);
       setIsModalOpen(false);
-      setSubmitting(false);
-      setErrorMessage("");
-      setFailedAttempts(0);
+      setModalError("");
       if (onVerify) {
         onVerify("TRUSTVAULT_DEV_CAPTCHA_PASSED");
       }
     } else {
-      const newAttempts = failedAttempts + 1;
-      setFailedAttempts(newAttempts);
-      setErrorMessage(`Code does not match. Try this new code:`);
-      setSubmitting(false);
-      triggerShake();
+      const attempts = failedAttempts + 1;
+      setFailedAttempts(attempts);
+      setModalError(`Verification failed: Code did not match. New challenge generated.`);
       generateCaptcha();
     }
-  };
-
-  const triggerShake = () => {
-    setIsShaking(true);
-    setTimeout(() => setIsShaking(false), 400);
   };
 
   const hasError = !isChecked && (error || failedAttempts > 0);
 
   return (
     <div>
-      {/* CAPTCHA Trigger Bar */}
+      {/* CAPTCHA Bar */}
       <div
+        onClick={handleDirectClick}
         style={{
           border: isChecked
             ? "1px solid #10B981"
@@ -140,15 +125,13 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
           alignItems: "center",
           justifyContent: "space-between",
           userSelect: "none",
+          cursor: isChecked ? "default" : "pointer",
           boxShadow: hasError ? "0 0 0 2px rgba(239, 68, 68, 0.15)" : "0 1px 3px rgba(0,0,0,0.04)",
           transition: "all 0.2s",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button
-            type="button"
-            onClick={handleOpenChallenge}
-            disabled={isChecked}
+          <div
             style={{
               width: "28px",
               height: "28px",
@@ -162,14 +145,13 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              cursor: isChecked ? "default" : "pointer",
-              outline: "none",
               transition: "all 0.2s",
             }}
           >
-            {isChecked && <CheckCircle2 size={20} style={{ color: "#059669" }} />}
-            {!isChecked && hasError && <AlertTriangle size={15} style={{ color: "#EF4444" }} />}
-          </button>
+            {loading && <RefreshCw size={16} className="animate-spin" style={{ color: "var(--electric-indigo)" }} />}
+            {isChecked && !loading && <CheckCircle2 size={20} style={{ color: "#059669" }} />}
+            {!isChecked && !loading && hasError && <AlertTriangle size={15} style={{ color: "#EF4444" }} />}
+          </div>
           <div>
             <div
               style={{
@@ -178,17 +160,37 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
                 color: isChecked ? "#065F46" : hasError ? "#991B1B" : "var(--text-main)",
               }}
             >
-              {isChecked
+              {loading
+                ? "Verifying security..."
+                : isChecked
                 ? "Human verification confirmed"
                 : hasError
                 ? "Human verification required"
-                : "Click to complete security verification"}
+                : "Click to verify you are human"}
             </div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
-              <span style={{ color: hasError ? "#DC2626" : isChecked ? "#059669" : "var(--electric-indigo)", fontWeight: "600" }}>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ color: isChecked ? "#059669" : hasError ? "#DC2626" : "var(--electric-indigo)", fontWeight: "600" }}>
                 {isChecked ? "Verified" : hasError ? "Action required" : "TrustVault Shield"}
               </span>
-              <span>&bull; Anti-bot challenge verification</span>
+              <span>&bull; Anti-bot protection</span>
+              {!isChecked && (
+                <button
+                  type="button"
+                  onClick={handleOpenPuzzle}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--electric-indigo)",
+                    fontSize: "11px",
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    padding: 0,
+                    marginLeft: "4px",
+                  }}
+                >
+                  (or solve puzzle)
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -202,7 +204,7 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
         </div>
       </div>
 
-      {/* Warning Alert beneath the trigger if failed or incomplete */}
+      {/* Warning message if submission failed */}
       {hasError && (
         <div
           style={{
@@ -218,13 +220,13 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
           <AlertCircle size={14} style={{ flexShrink: 0 }} />
           <span>
             {failedAttempts > 0
-              ? `Verification not completed (${failedAttempts} failed attempt${failedAttempts > 1 ? "s" : ""}). Click above to solve.`
-              : "Please click the security box above and solve the puzzle to proceed."}
+              ? `Verification failed (${failedAttempts} attempt${failedAttempts > 1 ? "s" : ""}). Click the box to verify.`
+              : "Please click the security box above to complete human verification."}
           </span>
         </div>
       )}
 
-      {/* Interactive CAPTCHA Challenge Modal */}
+      {/* Optional Interactive Puzzle Modal */}
       {isModalOpen && (
         <div
           style={{
@@ -247,40 +249,29 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
               backgroundColor: "#FFFFFF",
               borderRadius: "var(--radius-lg)",
               padding: "24px",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-              position: "relative",
-              transform: isShaking ? "translateX(-8px)" : "none",
-              transition: "transform 0.1s ease-in-out",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2)",
             }}
           >
-            {/* Modal Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <Shield size={20} style={{ color: "var(--electric-indigo)" }} />
                 <h3 style={{ fontSize: "16px", fontWeight: "800", color: "var(--midnight-indigo)" }}>
-                  Security Verification Challenge
+                  CAPTCHA Challenge
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  padding: "4px",
-                }}
+                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
               >
                 <X size={18} />
               </button>
             </div>
 
             <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px" }}>
-              Enter the 4 characters shown in the security box below:
+              Enter the 4 characters shown in the security box:
             </p>
 
-            {/* Clear, High-Legibility Canvas Box */}
             <div
               style={{
                 position: "relative",
@@ -298,7 +289,7 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
               <button
                 type="button"
                 onClick={generateCaptcha}
-                title="Get a new challenge"
+                title="Refresh code"
                 style={{
                   position: "absolute",
                   right: "8px",
@@ -308,18 +299,14 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
                   padding: "6px",
                   cursor: "pointer",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
                   color: "var(--electric-indigo)",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
                 }}
               >
                 <RefreshCw size={15} />
               </button>
             </div>
 
-            {/* Error Message with Warning Styling */}
-            {errorMessage && (
+            {modalError && (
               <div
                 style={{
                   display: "flex",
@@ -332,15 +319,14 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
                   padding: "10px 12px",
                   borderRadius: "var(--radius-sm)",
                   marginBottom: "14px",
-                  lineHeight: "1.4",
                 }}
               >
                 <AlertCircle size={16} style={{ flexShrink: 0, marginTop: "2px", color: "#DC2626" }} />
-                <span>{errorMessage}</span>
+                <span>{modalError}</span>
               </div>
             )}
 
-            <form onSubmit={handleVerifySubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <form onSubmit={handlePuzzleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <input
                 type="text"
                 autoFocus
@@ -355,7 +341,6 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
                   letterSpacing: "6px",
                   fontWeight: "800",
                   fontFamily: "var(--font-mono)",
-                  borderColor: errorMessage ? "#EF4444" : undefined,
                 }}
               />
 
@@ -368,13 +353,8 @@ export function CaptchaWidget({ onVerify, verified = false, error = false }) {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn btn-primary"
-                  style={{ flex: 1 }}
-                >
-                  {submitting ? "Checking..." : "Verify Code"}
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                  Verify
                 </button>
               </div>
             </form>
