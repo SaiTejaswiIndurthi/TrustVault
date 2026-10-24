@@ -63,8 +63,15 @@ if frontend_dist.exists():
             return Response(status_code=404)
         file_path = frontend_dist / full_path
         if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
-        return FileResponse(frontend_dist / "index.html")
+            resp = FileResponse(file_path)
+            if file_path.suffix == ".html":
+                resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            return resp
+        resp = FileResponse(frontend_dist / "index.html")
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
 else:
     @app.get("/")
     def root():
