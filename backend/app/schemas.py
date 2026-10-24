@@ -200,6 +200,8 @@ class AdminDashboardStats(BaseModel):
     recent_events: list[AuditEventResponse]
     category_distribution: dict[str, int]
     activity_timeline: list[dict[str, Any]]
+    denied_access_attempts: int = 0
+    security_alerts: list[dict[str, Any]] = []
 
 class OwnerDashboardStats(BaseModel):
     total_owned_documents: int

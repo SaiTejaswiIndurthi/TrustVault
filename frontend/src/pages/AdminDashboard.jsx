@@ -18,6 +18,10 @@ import {
   Lock,
   Eye,
   Key,
+  BarChart3,
+  PieChart,
+  TrendingUp,
+  AlertTriangle,
 } from "lucide-react";
 
 export function AdminDashboard() {
@@ -197,6 +201,26 @@ export function AdminDashboard() {
       {/* Tabs */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", marginBottom: "24px" }}>
         <button
+          onClick={() => setActiveTab("overview")}
+          style={{
+            padding: "12px 20px",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === "overview" ? "3px solid var(--electric-indigo)" : "3px solid transparent",
+            fontWeight: activeTab === "overview" ? "700" : "500",
+            color: activeTab === "overview" ? "var(--electric-indigo)" : "var(--text-muted)",
+            cursor: "pointer",
+            fontSize: "14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <BarChart3 size={16} />
+          <span>Security &amp; Activity Analytics</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab("users")}
           style={{
             padding: "12px 20px",
@@ -256,6 +280,246 @@ export function AdminDashboard() {
           <span>Tamper-Evident Audit Chain ({auditLogs.length})</span>
         </button>
       </div>
+
+      {/* Tab 0: Security & Activity Analytics */}
+      {activeTab === "overview" && stats && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          {/* Security Alerts Section */}
+          {stats.security_alerts && stats.security_alerts.length > 0 && (
+            <div className="vault-card" style={{ padding: "20px 24px", borderLeft: "4px solid var(--amber)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                <AlertTriangle size={20} style={{ color: "var(--amber)" }} />
+                <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--midnight-indigo)" }}>
+                  Active Security Interceptions &amp; Action Items
+                </h3>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px" }}>
+                {stats.security_alerts.map((alert, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: "var(--radius-sm)",
+                      backgroundColor:
+                        alert.severity === "CRITICAL"
+                          ? "var(--danger-light)"
+                          : alert.severity === "HIGH"
+                          ? "#FEF3C7"
+                          : alert.severity === "MEDIUM"
+                          ? "var(--soft-lavender)"
+                          : "#F1F5F9",
+                      border: "1px solid rgba(0,0,0,0.06)",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: "800",
+                          textTransform: "uppercase",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          backgroundColor:
+                            alert.severity === "CRITICAL"
+                              ? "#EF4444"
+                              : alert.severity === "HIGH"
+                              ? "#F59E0B"
+                              : alert.severity === "MEDIUM"
+                              ? "var(--electric-indigo)"
+                              : "#64748B",
+                          color: "#FFFFFF",
+                        }}
+                      >
+                        {alert.severity}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--midnight-indigo)", marginTop: "4px" }}>
+                      {alert.title}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+                      {alert.description}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Database-Backed Charts Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))", gap: "24px" }}>
+            {/* Chart 1: Activity Trends & Operation Distribution */}
+            <div className="vault-card" style={{ padding: "24px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+                <div>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--midnight-indigo)" }}>
+                    Activity Trends &amp; Operation Frequency
+                  </h3>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+                    Real database-backed distribution of recent tenant audit actions
+                  </p>
+                </div>
+                <TrendingUp size={20} style={{ color: "var(--electric-indigo)" }} />
+              </div>
+
+              {stats.activity_timeline && stats.activity_timeline.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {(() => {
+                    const maxCount = Math.max(...stats.activity_timeline.map((item) => item.count), 1);
+                    return stats.activity_timeline.map((item, idx) => {
+                      const pct = Math.round((item.count / maxCount) * 100);
+                      const colors = ["#635BDB", "#13B8A6", "#3B82F6", "#8B5CF6", "#F59E0B", "#10B981"];
+                      const barColor = colors[idx % colors.length];
+                      return (
+                        <div key={idx}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
+                            <span style={{ fontWeight: "600", fontFamily: "var(--font-mono)", color: "var(--midnight-indigo)" }}>
+                              {item.action}
+                            </span>
+                            <span style={{ color: "var(--text-muted)", fontWeight: "600" }}>
+                              {item.count} events
+                            </span>
+                          </div>
+                          <div style={{ height: "10px", width: "100%", backgroundColor: "#F1F5F9", borderRadius: "999px", overflow: "hidden" }}>
+                            <div
+                              style={{
+                                height: "100%",
+                                width: `${pct}%`,
+                                backgroundColor: barColor,
+                                borderRadius: "999px",
+                                transition: "width 0.6s ease-in-out",
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : (
+                <div style={{ padding: "32px 0", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
+                  No activity trends recorded yet.
+                </div>
+              )}
+            </div>
+
+            {/* Chart 2: Document Classification & Category Breakdown */}
+            <div className="vault-card" style={{ padding: "24px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+                <div>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--midnight-indigo)" }}>
+                    Document Classification &amp; Categories
+                  </h3>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+                    Tenant-isolated document volumes by category tag
+                  </p>
+                </div>
+                <PieChart size={20} style={{ color: "var(--trust-teal)" }} />
+              </div>
+
+              {stats.category_distribution && Object.keys(stats.category_distribution).length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  {(() => {
+                    const totalDocs = Object.values(stats.category_distribution).reduce((a, b) => a + b, 0) || 1;
+                    return Object.entries(stats.category_distribution).map(([cat, count], idx) => {
+                      const share = Math.round((count / totalDocs) * 100);
+                      const colors = ["#13B8A6", "#635BDB", "#F59E0B", "#3B82F6", "#EC4899", "#84CC16"];
+                      const barColor = colors[idx % colors.length];
+                      return (
+                        <div key={idx}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: "4px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: barColor, display: "inline-block" }} />
+                              <span style={{ fontWeight: "600", color: "var(--midnight-indigo)" }}>{cat || "Uncategorized"}</span>
+                            </div>
+                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                              <strong>{count}</strong> docs ({share}%)
+                            </div>
+                          </div>
+                          <div style={{ height: "10px", width: "100%", backgroundColor: "#F1F5F9", borderRadius: "999px", overflow: "hidden" }}>
+                            <div
+                              style={{
+                                height: "100%",
+                                width: `${share}%`,
+                                backgroundColor: barColor,
+                                borderRadius: "999px",
+                                transition: "width 0.6s ease-in-out",
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : (
+                <div style={{ padding: "32px 0", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
+                  No categorized documents uploaded yet.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Security Interception Summary Cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
+            <div className="vault-card" style={{ padding: "20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "10px", backgroundColor: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", color: "#DC2626" }}>
+                  <Ban size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", textTransform: "uppercase" }}>
+                    Denied Access Attempts
+                  </div>
+                  <div style={{ fontSize: "22px", fontWeight: "800", color: "var(--midnight-indigo)" }}>
+                    {stats.denied_access_attempts || 0}
+                  </div>
+                </div>
+              </div>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "10px", lineHeight: "1.5" }}>
+                All unauthorized downloads, permissions escalations, or unapproved login attempts are intercepted and recorded with client IP.
+              </p>
+            </div>
+
+            <div className="vault-card" style={{ padding: "20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "10px", backgroundColor: "#F0FDF4", display: "flex", alignItems: "center", justifyContent: "center", color: "#166534" }}>
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", textTransform: "uppercase" }}>
+                    Cryptographic Audit Chain
+                  </div>
+                  <div style={{ fontSize: "22px", fontWeight: "800", color: "#166534" }}>
+                    {stats.audit_chain_valid ? "VALIDATED" : "CHECK REQUIRED"}
+                  </div>
+                </div>
+              </div>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "10px", lineHeight: "1.5" }}>
+                Each event links to the previous via SHA-256 hash. The audit log cannot be modified without breaking subsequent links.
+              </p>
+            </div>
+
+            <div className="vault-card" style={{ padding: "20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "10px", backgroundColor: "var(--soft-lavender)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--electric-indigo)" }}>
+                  <Lock size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", textTransform: "uppercase" }}>
+                    Separation of Duties
+                  </div>
+                  <div style={{ fontSize: "22px", fontWeight: "800", color: "var(--midnight-indigo)" }}>
+                    ENFORCED
+                  </div>
+                </div>
+              </div>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "10px", lineHeight: "1.5" }}>
+                Administrator accounts cannot download confidential document content. Access requires explicit owner grants.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tab 1: User Management */}
       {activeTab === "users" && (

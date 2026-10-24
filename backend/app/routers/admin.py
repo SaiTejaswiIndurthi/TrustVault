@@ -96,6 +96,44 @@ def get_admin_dashboard_stats(
     for act, cnt in act_counts.items():
         activity_timeline.append({"action": act, "count": cnt})
 
+    # Denied access attempts
+    denied_access_attempts = (
+        db.query(AuditEvent)
+        .filter(AuditEvent.tenant_id == tenant_id, AuditEvent.outcome == "DENIED")
+        .count()
+    )
+
+    # Database-backed security alerts
+    security_alerts = []
+    if not verification["is_valid"]:
+        security_alerts.append({
+            "severity": "CRITICAL",
+            "title": "Audit Chain Integrity Violation",
+            "description": verification["message"],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+    if pending_approvals > 0:
+        security_alerts.append({
+            "severity": "MEDIUM",
+            "title": f"{pending_approvals} Registration(s) Pending Approval",
+            "description": "New users cannot log in until approved by an administrator.",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+    if suspended_users > 0:
+        security_alerts.append({
+            "severity": "LOW",
+            "title": f"{suspended_users} Account(s) Currently Suspended",
+            "description": "Sessions for suspended accounts are invalidated automatically.",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+    if denied_access_attempts > 0:
+        security_alerts.append({
+            "severity": "HIGH",
+            "title": f"{denied_access_attempts} Denied Access Attempt(s) Recorded",
+            "description": "Unauthorized access or download attempts have been intercepted and logged.",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
     return {
         "total_users": total_users,
         "active_users": active_users,
@@ -108,6 +146,8 @@ def get_admin_dashboard_stats(
         "recent_events": recent_events,
         "category_distribution": cat_dist,
         "activity_timeline": activity_timeline,
+        "denied_access_attempts": denied_access_attempts,
+        "security_alerts": security_alerts,
     }
 
 
