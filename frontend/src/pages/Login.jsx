@@ -38,7 +38,7 @@ export function Login({ onNavigate }) {
   const handleQuickFill = (roleEmail, rolePass) => {
     setEmail(roleEmail);
     setPassword(rolePass);
-    setCaptchaToken("TRUSTVAULT_DEV_CAPTCHA_PASSED");
+    setCaptchaToken(""); // Requires human verification challenge to be solved manually
     setError("");
   };
 
