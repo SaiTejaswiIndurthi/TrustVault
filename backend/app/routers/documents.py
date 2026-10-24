@@ -199,6 +199,7 @@ async def upload_document(
 
 
 @router.get("", response_model=list[DocumentResponse])
+@router.get("/", response_model=list[DocumentResponse])
 def list_documents(
     search: str | None = None,
     category: str | None = None,

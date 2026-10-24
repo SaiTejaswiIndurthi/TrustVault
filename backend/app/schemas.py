@@ -20,13 +20,20 @@ class TenantResponse(BaseModel):
 
 class UserRegisterRequest(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=128)
-    email: EmailStr
+    email: str
     phone_number: str = Field(..., min_length=7, max_length=32)
     password: str = Field(..., min_length=10, max_length=128)
     confirm_password: str = Field(..., min_length=10, max_length=128)
     role: str = Field(..., description="Target role: DOCUMENT_OWNER or VIEWER")
     tenant_name: str = Field(default="TrustVault Default Org", min_length=2, max_length=128)
     captcha_token: str = Field(..., description="CAPTCHA verification token")
+
+    @field_validator("email")
+    def validate_email(cls, v):
+        clean = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", clean):
+            raise ValueError("Invalid email address format.")
+        return clean
 
     @field_validator("role")
     def validate_role(cls, v):
@@ -58,13 +65,27 @@ class UserRegisterRequest(BaseModel):
         return v
 
 class UserLoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     captcha_token: str | None = None
 
+    @field_validator("email")
+    def validate_email(cls, v):
+        clean = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", clean):
+            raise ValueError("Invalid email address format.")
+        return clean
+
 class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
+    email: str
     captcha_token: str
+
+    @field_validator("email")
+    def validate_email(cls, v):
+        clean = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", clean):
+            raise ValueError("Invalid email address format.")
+        return clean
 
 class ResetPasswordRequest(BaseModel):
     token: str
