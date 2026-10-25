@@ -1,4 +1,14 @@
-# TrustVault — Backend Dockerfile
+# Stage 1: Build Frontend Assets
+FROM node:20-slim AS frontend-builder
+WORKDIR /app/frontend
+
+COPY frontend/package*.json ./
+RUN npm install
+
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: Production Python Backend
 FROM python:3.13-slim
 
 LABEL maintainer="trustvault@dev.local"
@@ -16,10 +26,14 @@ COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ /app/backend/
-COPY frontend/dist/ /app/frontend/dist/
+# Copy built frontend assets from frontend-builder stage
+COPY --from=frontend-builder /app/frontend/dist/ /app/frontend/dist/
 
 # Create private vault storage directory
 RUN mkdir -p /app/backend/storage/vault
 
-# Run migrations and start server
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Seed database and start server on dynamic $PORT (required by Render/Heroku/Cloud platforms)
+ENV PORT=8000
+EXPOSE 8000
+
+CMD ["sh", "-c", "python backend/seed.py && uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
