@@ -35,9 +35,18 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS Configuration
+cors_origins = list(settings.CORS_ORIGINS)
+cors_origins.extend([
+    "https://trustvault-f6u2.onrender.com",
+    "http://localhost:5173",
+    "http://localhost:8000",
+    "http://localhost:3000",
+])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=cors_origins,
+    allow_origin_regex=r"^https?://.*",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],

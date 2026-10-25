@@ -1,5 +1,8 @@
 // TrustVault API Client
-const BASE_URL = "/api";
+const API_HOST = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/+$/, "")
+  : "";
+const BASE_URL = API_HOST ? `${API_HOST}/api` : "/api";
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem("trustvault_token");
