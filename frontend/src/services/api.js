@@ -46,7 +46,23 @@ async function request(endpoint, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const error = new Error(data.detail || "An unexpected error occurred");
+    let errorMsg = "An unexpected error occurred";
+    if (typeof data.detail === "string") {
+      errorMsg = data.detail;
+    } else if (Array.isArray(data.detail)) {
+      // Clean up FastAPI/Pydantic validation errors
+      errorMsg = data.detail
+        .map((d) => {
+          if (typeof d === "string") return d;
+          const field = d.loc && d.loc.length > 1 ? `${d.loc[d.loc.length - 1]}: ` : "";
+          const msg = (d.msg || "").replace(/^Value error,\s*/i, "");
+          return `${field}${msg}`;
+        })
+        .join("; ");
+    } else if (data.message) {
+      errorMsg = data.message;
+    }
+    const error = new Error(errorMsg);
     error.status = response.status;
     error.data = data;
     throw error;

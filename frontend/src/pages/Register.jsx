@@ -43,21 +43,37 @@ export function Register({ onNavigate }) {
       setError("Password must be at least 10 characters long.");
       return;
     }
+    if (!/[A-Z]/.test(password)) {
+      setError("Password must contain at least one uppercase letter (A-Z).");
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setError("Password must contain at least one lowercase letter (a-z).");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setError("Password must contain at least one numeric digit (0-9).");
+      return;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      setError("Password must contain at least one special character (e.g. !@#$%^&*).");
+      return;
+    }
     if (!captchaToken) {
-      setError("Human verification challenge required: Please complete the security puzzle below.");
+      setError("Human verification challenge required: Please complete the security challenge below.");
       return;
     }
 
     setLoading(true);
     try {
       const res = await api.register({
-        full_name: fullName,
-        email,
-        phone_number: phone,
+        full_name: fullName.trim(),
+        email: email.trim(),
+        phone_number: phone.trim(),
         password,
         confirm_password: confirmPassword,
         role,
-        tenant_name: tenantName,
+        tenant_name: tenantName.trim(),
         captcha_token: captchaToken,
       });
       setSuccessData(res);
@@ -410,6 +426,9 @@ export function Register({ onNavigate }) {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                     />
                   </div>
+                </div>
+                <div style={{ fontSize: "11px", color: "#64748B", marginTop: "-6px" }}>
+                  Must contain &ge;10 characters with uppercase, lowercase, number, and special symbol (e.g. <code>!@#$%^&*</code>).
                 </div>
 
                 {/* CAPTCHA challenge */}
